@@ -2,26 +2,29 @@ import random
 import curses
 import time
 
-def render(player, win, counter, grid):
-    if(counter % 20 == 0 or counter % 20 == 1):
-        win.attron(player.color)
-        win.addch(player.position_last.x, player.position_last.y, ' ')
-        win.addch(player.position_rear.x, player.position_rear.y, ' ')
-        win.addch(player.position.x, player.position.y, 'o')
-        win.attroff(player.color)
+###COLORS
+#Player 1 - white 0 248 236
+#Player 2 - blue 22 20 18
+#Player 3 - green 47 43 23
+#Player 4 - violent 202 213 55
 
-        grid[player.position_last.x][player.position_last.y] = 0
-        grid[player.position_rear.x][player.position_rear.y] = 0
+COLORS =  {
+            0: [0, 248, 236],
+            1: [22, 20, 18],
+            2: [47, 43, 23],
+            3: [202, 213, 55]
+            }
 
-    else:
-        win.attron(player.color)
-        win.addch(player.position_last.x, player.position_last.y, player.char)
-        win.addch(player.position_rear.x, player.position_rear.y, 'o')
-        win.addch(player.position.x, player.position.y, 'o')
-        win.attroff(player.color)
-
-        grid[player.position_rear.x][player.position_rear.y] = 1
-        grid[player.position.x][player.position.y] = 1
+class Player:
+    def __init__(self, num):
+        self.number = num
+        self.bike = None
+        self.score = 0
+    def match_bike(self, bike):
+        self.bike = bike
+        self.bike.player = self
+    def add_victory(self):
+        self.score += 1
 
 class Position:
     def __init__(self, x, y, grid):
@@ -32,10 +35,12 @@ class Position:
     def is_free(self):
         return self.grid[self.x][self.y] == 0
 
-class Player:
-    def __init__(self, color, char, width, height, number, grid):
+class Motorbike:
+    def __init__(self, color, char, width, height, number, grid, player):
         self.number = number
-        self.color = color
+        self.colors = COLORS[color]
+        self.color_index = 0
+        self.color = self.colors[self.color_index]
         self.char = char
         # 0-Up 1-Down, 2-Right, 3-Left
         self.direction = random.randint(0,3)
@@ -52,6 +57,8 @@ class Player:
         self.is_alive = True
 
         self.position_last = Position(self.position_rear.x, self.position_rear.y, grid)
+
+        self.player = player
 
     def check_collision(self):
         return not self.position.is_free()
@@ -87,41 +94,117 @@ class Player:
             self.position_rear.x = self.position.x
             self.position_rear.y = self.position.y
             self.position.y -= 1
+
+    def crash(self):
+        self.setDead()
+        self.color = COLORS[self.number][1]
+
     def setDead(self):
         self.is_alive = False
     def getColor(self):
         return self.color
+    def render(self, win, counter, grid):
+        if(self.is_alive):
+            if(counter % 20 == 0 or counter % 20 == 1):
+                win.attron(curses.color_pair(self.color))
+                win.addch(self.position_last.x, self.position_last.y, ' ')
+                win.addch(self.position_rear.x, self.position_rear.y, ' ')
+                win.addch(self.position.x, self.position.y, 'o')
+                win.attroff(curses.color_pair(self.color))
+
+                grid[self.position_last.x][self.position_last.y] = 0
+                grid[self.position_rear.x][self.position_rear.y] = 0
+
+            else:
+                win.attron(curses.color_pair(self.color))
+                win.addch(self.position_last.x, self.position_last.y, self.char)
+                win.addch(self.position_rear.x, self.position_rear.y, 'o')
+                win.addch(self.position.x, self.position.y, 'o')
+                win.attroff(curses.color_pair(self.color))
+
+                grid[self.position_rear.x][self.position_rear.y] = 1
+                grid[self.position.x][self.position.y] = 1
+        else:
+            if(self.color_index < len(self.colors)):
+                self.color = self.colors[self.color_index]
+                win.attron(curses.color_pair(self.color))
+                if(self.color_index == 0):
+                    self.position = self.position_rear
+                    win.addch(self.position.x, self.position.y, curses.ACS_CKBOARD)
+
+                elif(self.color_index == 1):
+                    for r in range(self.position.x-1, self.position.x+2):
+                        for c in range(self.position.y-1, self.position.y+2):
+                            if r >= 0 and c >= 0 and r <= len(grid) and c <= len(grid[0]):
+                                if not grid[r][c]:
+                                    win.addch(r, c, curses.ACS_CKBOARD)
+
+                elif(self.color_index == 2):
+                    r = self.position.x - 2
+                    for c in range(self.position.y-2, self.position.y+3):
+                        if r >= 0 and c >= 0 and r < len(grid) and c < len(grid[0]):
+                            if not grid[r][c]:
+                                win.addch(r, c, curses.ACS_CKBOARD)
+
+                    r = self.position.x + 2
+                    for c in range(self.position.y-2, self.position.y+3):
+                        if r >= 0 and c >= 0 and r < len(grid) and c < len(grid[0]):
+                            if not grid[r][c]:
+                                win.addch(r, c, curses.ACS_CKBOARD)
+
+                    c = self.position.y - 2
+                    for r in range(self.position.x-2, self.position.x+3):
+                        if r >= 0 and c >= 0 and r < len(grid) and c < len(grid[0]):
+                            if not grid[r][c]:
+                                win.addch(r, c, curses.ACS_CKBOARD)
+
+                    c = self.position.y + 2
+                    for r in range(self.position.x-2, self.position.x+3):
+                        if r >= 0 and c >= 0 and r < len(grid) and c < len(grid[0]):
+                            if not grid[r][c]:
+                                win.addch(r, c, curses.ACS_CKBOARD)
+
+                win.attroff(curses.color_pair(self.color))
+                self.color_index += 1
+
+            elif(self.color_index == len(self.colors)):
+                self.color_index += 1
+                win.attron(curses.color_pair(self.colors[0]))
+                win.addch(self.position.x, self.position.y, 'o')
+                for r in range(self.position.x-2, self.position.x+3):
+                    for c in range(self.position.y-2, self.position.y+3):
+                        if r >= 0 and c >= 0 and r < len(grid) and c < len(grid[0]):
+                            if not grid[r][c]:
+                                win.addch(r, c, ' ')
+                win.attroff(curses.color_pair(self.color))
 
 class Game:
-    def __init__(self, sc, number_of_players):
+    def __init__(self, sc):
         self.sc = sc
-        self.num_of_players = number_of_players
-
-        self.players_controls = {}
-        self.colors = []
-        self.chars = []
-        self.grid = []
-        self.players = []
 
         curses.start_color()
-        curses.init_pair(1, curses.COLOR_CYAN, curses.COLOR_BLACK)
-        curses.init_pair(2, curses.COLOR_RED, curses.COLOR_BLACK)
-        curses.init_pair(3, curses.COLOR_MAGENTA, curses.COLOR_BLACK)
+        curses.use_default_colors()
+        for i in range(0, curses.COLORS):
+            curses.init_pair(i + 1, i, -1)
 
-        self.colors.append(curses.color_pair(1))
-        self.colors.append(curses.color_pair(2))
-        self.colors.append(curses.color_pair(3))
+        self.players_controls = {}
+        self.chars = []
+        self.grid = []
+        self.bikes = []
 
         self.h, self.w = sc.getmaxyx()
         self.win = curses.newwin(self.h, self.w, 0, 0)
         self.win.keypad(1)
         curses.curs_set(0)
 
-        self.chars = [curses.ACS_CKBOARD, '#', '*']
+        self.chars = [curses.ACS_CKBOARD, '#', '*', '|']
 
-        self.player1_controls = {curses.KEY_UP: 0, curses.KEY_LEFT: 0, curses.KEY_DOWN: 0, curses.KEY_RIGHT: 0}
-        self.player2_controls = {ord('w'): 1, ord('a'): 1, ord('s'): 1, ord('d'): 1}
-        self.player3_controls = {ord('i'): 2, ord('j'): 2, ord('k'): 2, ord('l'): 2}
+        self.all_players_controls = [
+                                    {curses.KEY_UP: 0, curses.KEY_LEFT: 0, curses.KEY_DOWN: 0, curses.KEY_RIGHT: 0},
+                                    {ord('w'): 1, ord('a'): 1, ord('s'): 1, ord('d'): 1},
+                                    {ord('i'): 2, ord('j'): 2, ord('k'): 2, ord('l'): 2},
+                                    {ord('g'): 3, ord('v'): 3, ord('b'): 3, ord('n'): 3}
+                                    ]
 
     def init_grid(self):
         self.grid = []
@@ -133,42 +216,40 @@ class Game:
                 else:
                     self.grid[x].append(0)
 
-    def init_players(self):
-        self.players = []
-        if(self.num_of_players == 1):
-            self.players_controls.update(self.player1_controls)
-        elif(self.num_of_players == 2):
-            self.players_controls.update(self.player1_controls)
-            self.players_controls.update(self.player2_controls)
-        elif(self.num_of_players == 3):
-            self.players_controls.update(self.player1_controls)
-            self.players_controls.update(self.player2_controls)
-            self.players_controls.update(self.player3_controls)
-        for i in range(self.num_of_players):
-            self.players.append(Player(self.colors[i], self.chars[i], self.w, self.h, i, self.grid))
+    def init_bikes(self, players):
+        num_of_players = len(players)
+        self.bikes = []
+        for i in range(num_of_players):
+            self.players_controls.update(self.all_players_controls[i])
+            self.bikes.append(Motorbike(i, self.chars[i], self.w, self.h, i, self.grid, players[i]))
+            players[i].match_bike(self.bikes[-1])
 
-    def play(self):
+    def render_bikes(self):
+        for bike in self.bikes:
+            bike.render(self.win, 0, self.grid)
+
+    def play(self, players):
+        num_of_players = len(players)
+
         self.win.clear()
         self.init_grid()
-        self.init_players()
-        for player in self.players:
-            render(player, self.win, 0, self.grid)
-
+        self.init_bikes(players)
+        self.render_bikes()
         prev_button_direction = 1
         button_direction = 1
         key = curses.KEY_RIGHT
 
         counter = 0
-        num_of_players_alive = self.num_of_players
+        num_of_players_alive = num_of_players
 
+
+
+        self.win.border()
         self.win.refresh()
 
         while True:
-            self.win.timeout(100)
-
+            self.win.timeout(200)
             counter += 1
-            if(num_of_players_alive == 0):
-                break
 
             next_key = self.win.getch()
 
@@ -181,38 +262,88 @@ class Game:
             if key in self.players_controls.keys():
                 player_index = self.players_controls[key]
 
-                if (chr(key) == 'j' or chr(key) == 'a' or key == curses.KEY_LEFT) and self.players[player_index].prev_direction != 1:
-                    self.players[player_index].direction = 0
-                elif (chr(key) == 'l' or chr(key) == 'd' or key == curses.KEY_RIGHT) and self.players[player_index].prev_direction != 0:
-                    self.players[player_index].direction = 1
-                elif (chr(key) == 'i' or chr(key) == 'w' or key == curses.KEY_UP) and self.players[player_index].prev_direction != 2:
-                    self.players[player_index].direction = 3
-                elif (chr(key) == 'k' or chr(key) == 's' or key == curses.KEY_DOWN) and self.players[player_index].prev_direction != 3:
-                    self.players[player_index].direction = 2
+                if keyLeft(key) and self.bikes[player_index].prev_direction != 1:
+                    self.bikes[player_index].direction = 0
+                elif keyRight(key) and self.bikes[player_index].prev_direction != 0:
+                    self.bikes[player_index].direction = 1
+                elif keyUp(key) and self.bikes[player_index].prev_direction != 2:
+                    self.bikes[player_index].direction = 3
+                elif keyDown(key) and self.bikes[player_index].prev_direction != 3:
+                    self.bikes[player_index].direction = 2
 
-            for player in self.players:
-                player.prev_direction = player.direction
+            for bike in self.bikes:
+                bike.prev_direction = bike.direction
 
-                if player.direction == 0:
-                    player.move_y_minus()
-                elif player.direction == 1:
-                    player.move_y_plus()
-                elif player.direction == 3:
-                    player.move_x_minus()
-                elif player.direction == 2:
-                    player.move_x_plus()
+                if bike.direction == 0:
+                    bike.move_y_minus()
+                elif bike.direction == 1:
+                    bike.move_y_plus()
+                elif bike.direction == 3:
+                    bike.move_x_minus()
+                elif bike.direction == 2:
+                    bike.move_x_plus()
 
-                if(player.check_collision() and player.is_alive):
-                    player.setDead()
+                if(bike.check_collision() and bike.is_alive):
+                    bike.setDead()
                     num_of_players_alive -= 1
-                if player.is_alive:
-                    render(player, self.win, counter, self.grid)
+                    if(num_of_players_alive == 1):
+                        for bike in self.bikes:
+                            if bike.is_alive:
+                                bike.player.add_victory()
+                                winner = bike.player
+                                break
 
-        self.game_over()
+                bike.render(self.win, counter, self.grid)
 
-    def game_over(self):
+
+            if(num_of_players_alive == 0):
+                break
+
+
+        if(num_of_players == 1):
+            winner = self.bikes[0].player
+            winner.add_victory()
+        for i in range(3):
+            self.win.timeout(200)
+            next_key = self.win.getch()
+            winner.bike.render(self.win, 0, self.grid)
+
+
+        self.game_over(winner)
+
+    def game_over(self, winner):
         self.sc.clear()
         self.sc.addstr(round(self.h/2), round(self.w/2), "GAME OVER")
+        self.sc.addstr(round(self.h/2)+2, round(self.w/2), "Player " + str(winner.number) + " won")
         self.sc.refresh()
-        time.sleep(1)
+        while(True):
+            if self.sc.getch() or counter == 3000/200:
+                break
+            self.sc.timeout(200)
+            counter += 1
         self.sc.clear()
+
+    def show_score(self):
+        self.sc.clear()
+        self.sc.addstr(round(self.h/2), round(self.w/2), "SCORE")
+        for bike in self.bikes:
+            self.sc.addstr(round(self.h/2)+2+bike.player.number, round(self.w/2), "Player " + str(bike.player.number) + " won " + str(bike.player.score) + " times")
+        self.sc.refresh()
+        while(True):
+            if self.sc.getch() or counter == 3000/200:
+                break
+            self.sc.timeout(200)
+            counter += 1
+        self.sc.clear()
+
+def keyUp(key):
+    return (chr(key) == 'g' or chr(key) == 'i' or chr(key) == 'w' or key == curses.KEY_UP)
+
+def keyDown(key):
+    return (chr(key) == 'b' or chr(key) == 'k' or chr(key) == 's' or key == curses.KEY_DOWN)
+
+def keyRight(key):
+    return (chr(key) == 'n' or chr(key) == 'l' or chr(key) == 'd' or key == curses.KEY_RIGHT)
+
+def keyLeft(key):
+    return (chr(key) == 'v' or chr(key) == 'j' or chr(key) == 'a' or key == curses.KEY_LEFT)
