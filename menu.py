@@ -2,7 +2,7 @@
 
 import curses
 from curses import panel
-from Game import Game, Player
+from game import Game, Player, Position, Motorbike
 
 class TextField(object):
 
@@ -87,6 +87,9 @@ class MyApp(object):
     def __init__(self, stdscreen):
         self.screen = stdscreen
 
+        ws = WelcomeScreen(stdscreen)
+        ws.display()
+
         self.players = []
         self.num_of_players = 1
         curses.curs_set(0)
@@ -123,6 +126,81 @@ class MyApp(object):
         if self.players == []:
             self.set_number_of_players(self.num_of_players)
         self.game.play(self.players)
+
+class WelcomeScreen(object):
+    def __init__(self, stdscreen):
+        self.screen = stdscreen
+
+        self.h, self.w = self.screen.getmaxyx()
+        self.screen.clear()
+        self.screen.refresh()
+
+        curses.start_color()
+        curses.use_default_colors()
+        for i in range(0, curses.COLORS):
+            curses.init_pair(i + 1, i, -1)
+        curses.curs_set(0)
+        self.welcomeText = open('res/welcome.txt', 'r').read()
+
+        self.welcome_h = len(self.welcomeText.splitlines())
+        self.welcome_w = len(max(self.welcomeText.splitlines(), key=len))
+
+        self.welcome_x = round((self.w / 2 - self.welcome_w / 2))
+        self.welcome_y = round((self.h / 2 - self.welcome_h / 2))
+
+        center_x_left = round((self.w - self.welcome_w)/4)
+        center_x_right = self.w - center_x_left
+        center_y_top = round((self.h - self.welcome_h)/4)
+        center_y_bot = self.h - center_y_top
+        positions = []
+        positions.append(Position(center_y_top, round(self.w/2), []))
+        positions.append(Position(center_y_bot, round(self.w/2), []))
+        positions.append(Position(round(self.h/2), center_x_left, []))
+        positions.append(Position(round(self.h/2), center_x_right, []))
+
+        self.pos_right_bot = Position(center_y_bot, center_x_right, [])
+
+        self.pos_left_top = Position(center_y_top, center_x_left, [])
+        self.pos_right_top = Position(center_y_top, center_x_right, [])
+        self.pos_left_bot = Position(center_y_bot, center_x_left, [])
+
+        self.bikes = []
+        for i, pos in enumerate(positions):
+            self.bikes.append(Motorbike(i, curses.ACS_CKBOARD, [], position = pos, direction = i))
+
+
+    def display(self):
+        for y, line in enumerate(self.welcomeText.splitlines()):
+            self.screen.addstr(y+self.welcome_y, self.welcome_x, line)
+        curses.halfdelay(1)
+        curses.noecho()
+        while(True):
+            self.screen.timeout(100)
+            for bike in self.bikes:
+                bike.render(self.screen, 0, [])
+                if bike.direction == 0:
+                    bike.move_col_left()
+                elif bike.direction == 1:
+                    bike.move_col_right()
+                elif bike.direction == 3:
+                    bike.move_row_up()
+                elif bike.direction == 2:
+                    bike.move_row_down()
+
+                if(bike.position == self.pos_left_top):#change direction to down
+                    bike.direction = 2
+                elif(bike.position == self.pos_right_top):#change direction to left
+                    bike.direction = 0
+                elif(bike.position == self.pos_right_bot):#change direction to up
+                    bike.direction = 3
+                elif(bike.position == self.pos_left_bot):#change direction to right
+                    bike.direction = 1
+            key = self.screen.getch()
+            if(key != curses.ERR):
+                break
+
+        self.screen.clear()
+        self.screen.refresh()
 
 if __name__ == '__main__':
     curses.wrapper(MyApp)

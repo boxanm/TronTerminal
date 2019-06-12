@@ -1,7 +1,7 @@
 import random
 import curses
 import time
-from Menu import MyApp
+from menu import MyApp
 
 def main(sc):
     myApp = MyApp(sc)

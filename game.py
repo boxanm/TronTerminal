@@ -34,18 +34,29 @@ class Position:
 
     def is_free(self):
         return self.grid[self.x][self.y] == 0
+    def __str__(self):
+        return str(self.x) + " " + str(self.y)
+    def __eq__(self, other):
+        if(other == None):
+            return False
+        return self.x == other.x and self.y == other.y
 
 class Motorbike:
-    def __init__(self, color, char, width, height, number, grid, player):
-        self.number = number
+    def __init__(self, color, char, grid, position = None, direction = None):
         self.colors = COLORS[color]
         self.color_index = 0
         self.color = self.colors[self.color_index]
         self.char = char
-        # 0-Up 1-Down, 2-Right, 3-Left
-        self.direction = random.randint(0,3)
+        # 0 - left, 1 -  right, 2 - down, 3 - up
+        if(direction == None):
+            self.direction = random.randint(0,3)
+        else:
+            self.direction = direction
         self.prev_direction = self.direction
-        self.position = Position(random.randint(10, height-10), random.randint(10, width-10), grid)
+        if(position == None):
+            self.position = Position(random.randint(10, len(grid)-10), random.randint(10, len(grid[0])-10), grid)
+        else:
+            self.position = position
         if(self.direction == 0):
             self.position_rear = Position(self.position.x, self.position.y-1, grid)
         elif(self.direction == 1):
@@ -54,55 +65,66 @@ class Motorbike:
             self.position_rear = Position(self.position.x-1, self.position.y, grid)
         elif(self.direction == 3):
             self.position_rear = Position(self.position.x+1, self.position.y, grid)
-        self.is_alive = True
 
         self.position_last = Position(self.position_rear.x, self.position_rear.y, grid)
-
-        self.player = player
-
-    def check_collision(self):
-        return not self.position.is_free()
-
     def get_position(self):
         return self.position.x, self.position.y
 
-    def move_x_plus(self):
-        if(self.is_alive):
-            self.position_last.x = self.position_rear.x
-            self.position_last.y = self.position_rear.y
-            self.position_rear.x = self.position.x
-            self.position_rear.y = self.position.y
-            self.position.x += 1
-    def move_x_minus(self):
-        if(self.is_alive):
-            self.position_last.x = self.position_rear.x
-            self.position_last.y = self.position_rear.y
-            self.position_rear.x = self.position.x
-            self.position_rear.y = self.position.y
-            self.position.x -= 1
-    def move_y_plus(self):
-        if(self.is_alive):
-            self.position_last.x = self.position_rear.x
-            self.position_last.y = self.position_rear.y
-            self.position_rear.x = self.position.x
-            self.position_rear.y = self.position.y
-            self.position.y += 1
-    def move_y_minus(self):
-        if(self.is_alive):
-            self.position_last.x = self.position_rear.x
-            self.position_last.y = self.position_rear.y
-            self.position_rear.x = self.position.x
-            self.position_rear.y = self.position.y
-            self.position.y -= 1
+    def move_row_down(self):
+        self.position_last.x = self.position_rear.x
+        self.position_last.y = self.position_rear.y
+        self.position_rear.x = self.position.x
+        self.position_rear.y = self.position.y
+        self.position.x += 1
+    def move_row_up(self):
+        self.position_last.x = self.position_rear.x
+        self.position_last.y = self.position_rear.y
+        self.position_rear.x = self.position.x
+        self.position_rear.y = self.position.y
+        self.position.x -= 1
+    def move_col_right(self):
+        self.position_last.x = self.position_rear.x
+        self.position_last.y = self.position_rear.y
+        self.position_rear.x = self.position.x
+        self.position_rear.y = self.position.y
+        self.position.y += 1
+    def move_col_left(self):
+        self.position_last.x = self.position_rear.x
+        self.position_last.y = self.position_rear.y
+        self.position_rear.x = self.position.x
+        self.position_rear.y = self.position.y
+        self.position.y -= 1
+    def render(self, win, counter, grid):
+        win.attron(curses.color_pair(self.color))
+        win.addch(self.position_last.x, self.position_last.y, self.char)
+        win.addch(self.position_rear.x, self.position_rear.y, 'o')
+        win.addch(self.position.x, self.position.y, 'o')
+        win.attroff(curses.color_pair(self.color))
 
-    def crash(self):
-        self.setDead()
-        self.color = COLORS[self.number][1]
+class MotorbikeGame(Motorbike):
+    def __init__(self, color, char, number, grid, player, position = None, direction = None):
+        super().__init__(color, char, grid, position, direction)
+        self.player = player
+        self.number = number
+        self.is_alive = True
 
     def setDead(self):
         self.is_alive = False
-    def getColor(self):
-        return self.color
+
+    def check_collision(self):
+        return not self.position.is_free()
+    def move_row_down(self):
+        if(self.is_alive):
+            super().move_row_down()
+    def move_row_up(self):
+        if(self.is_alive):
+            super().move_row_up()
+    def move_col_right(self):
+        if(self.is_alive):
+            super().move_col_right()
+    def move_col_left(self):
+        if(self.is_alive):
+            super().move_col_left()
     def render(self, win, counter, grid):
         if(self.is_alive):
             if(counter % 20 == 0 or counter % 20 == 1):
@@ -221,7 +243,7 @@ class Game:
         self.bikes = []
         for i in range(num_of_players):
             self.players_controls.update(self.all_players_controls[i])
-            self.bikes.append(Motorbike(i, self.chars[i], self.w, self.h, i, self.grid, players[i]))
+            self.bikes.append(MotorbikeGame(i, self.chars[i], i, self.grid, players[i]))
             players[i].match_bike(self.bikes[-1])
 
     def render_bikes(self):
@@ -275,13 +297,13 @@ class Game:
                 bike.prev_direction = bike.direction
 
                 if bike.direction == 0:
-                    bike.move_y_minus()
+                    bike.move_col_left()
                 elif bike.direction == 1:
-                    bike.move_y_plus()
+                    bike.move_col_right()
                 elif bike.direction == 3:
-                    bike.move_x_minus()
+                    bike.move_row_up()
                 elif bike.direction == 2:
-                    bike.move_x_plus()
+                    bike.move_row_down()
 
                 if(bike.check_collision() and bike.is_alive):
                     bike.setDead()
