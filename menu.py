@@ -4,23 +4,35 @@ import curses
 from curses import panel
 from game import Game, Player, Position, Motorbike
 
+COLORS =  {
+            0: [0, 248, 236],
+            1: [22, 20, 18],
+            2: [47, 43, 23],
+            3: [202, 213, 55]
+            }
+
 class TextField(object):
 
-        def __init__(self, stdscreen):
-            self.window = stdscreen.subwin(0,0)
-            self.window.keypad(1)
+    def __init__(self, stdscreen):
+        self.window = stdscreen.subwin(0,0)
+        self.window.keypad(1)
 
-        def display(self, string):
-            self.window.clear()
+    def display(self, string):
+        self.window.clear()
 
-            self.window.refresh()
-            curses.doupdate()
-            self.window.addstr(1, 1, string, curses.A_NORMAL)
-            self.window.getch()
+        self.window.refresh()
+        curses.doupdate()
+        self.window.addstr(1, 1, string, curses.A_NORMAL)
+        counter = 0
+        while(True):
+            key = self.window.getch()
+            if key != curses.ERR or counter == 3000/200:
+                break
+            counter += 1
 
-            self.window.clear()
-            self.window.refresh()
-            curses.doupdate()
+        self.window.clear()
+        self.window.refresh()
+        curses.doupdate()
 
 class Menu(object):
 
@@ -86,6 +98,13 @@ class MyApp(object):
 
     def __init__(self, stdscreen):
         self.screen = stdscreen
+        self.h, self.w = self.screen.getmaxyx()
+
+        curses.start_color()
+        curses.use_default_colors()
+        for i in range(0, curses.COLORS):
+            curses.init_pair(i + 1, i, -1)
+        curses.curs_set(0)
 
         ws = WelcomeScreen(stdscreen)
         ws.display()
@@ -125,7 +144,46 @@ class MyApp(object):
     def play_game(self):
         if self.players == []:
             self.set_number_of_players(self.num_of_players)
+        self.display_controls_all()
         self.game.play(self.players)
+
+    def display_controls_all(self):
+        self.screen.clear()
+        self.screen.refresh()
+        for i, player in enumerate(self.players):
+            self.display_controls(player.get_controls(), i, COLORS[i][0])
+        counter = 0
+        while(True):
+            key = self.screen.getch()
+            if key != curses.ERR or counter == 3000/200:
+                break
+            counter += 1
+
+        self.screen.clear()
+        self.screen.refresh()
+
+    def display_controls(self, controls, index, color):
+        if index == 0:
+            self.screen.addstr(3, 3, controls[0], curses.color_pair(color))
+            self.screen.addstr(3, 9, controls[1], curses.color_pair(color))
+            self.screen.addstr(2, 6, controls[2], curses.color_pair(color))
+            self.screen.addstr(3, 6, controls[3], curses.color_pair(color))
+        elif index == 1:
+            self.screen.addstr(3, 15, controls[0], curses.color_pair(color))
+            self.screen.addstr(3, 21, controls[1], curses.color_pair(color))
+            self.screen.addstr(2, 18, controls[2], curses.color_pair(color))
+            self.screen.addstr(3, 18, controls[3], curses.color_pair(color))
+        elif index == 2:
+            self.screen.addstr(12, 3, controls[0], curses.color_pair(color))
+            self.screen.addstr(12, 9, controls[1], curses.color_pair(color))
+            self.screen.addstr(11, 6, controls[2], curses.color_pair(color))
+            self.screen.addstr(12, 6, controls[3], curses.color_pair(color))
+        elif index == 3:
+            self.screen.addstr(12, 15, controls[0], curses.color_pair(color))
+            self.screen.addstr(12, 21, controls[1], curses.color_pair(color))
+            self.screen.addstr(11, 18, controls[2], curses.color_pair(color))
+            self.screen.addstr(12, 18, controls[3], curses.color_pair(color))
+        self.screen.refresh()
 
 class WelcomeScreen(object):
     def __init__(self, stdscreen):

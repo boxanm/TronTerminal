@@ -16,15 +16,25 @@ COLORS =  {
             }
 
 class Player:
-    def __init__(self, num):
-        self.number = num
+    def __init__(self, index):
+        self.number = index
         self.bike = None
         self.score = 0
+        if(index == 0):
+            self.controls = ['<','>','/\\','\\/']
+        elif(index==1):
+            self.controls = ['a','d','w','s']
+        elif(index==2):
+            self.controls = ['j','l','i','k']
+        elif(index==3):
+            self.controls = ['v','n','g','b']
     def match_bike(self, bike):
         self.bike = bike
         self.bike.player = self
     def add_victory(self):
         self.score += 1
+    def get_controls(self):
+        return self.controls
 
 class Position:
     def __init__(self, x, y, grid):
@@ -338,8 +348,10 @@ class Game:
         self.sc.addstr(round(self.h/2), round(self.w/2), "GAME OVER")
         self.sc.addstr(round(self.h/2)+2, round(self.w/2), "Player " + str(winner.number) + " won")
         self.sc.refresh()
+        counter = 0
         while(True):
-            if self.sc.getch() or counter == 3000/200:
+            key = self.sc.getch()
+            if key != curses.ERR or counter == 3000/200:
                 break
             self.sc.timeout(200)
             counter += 1
@@ -351,10 +363,11 @@ class Game:
         for bike in self.bikes:
             self.sc.addstr(round(self.h/2)+2+bike.player.number, round(self.w/2), "Player " + str(bike.player.number) + " won " + str(bike.player.score) + " times")
         self.sc.refresh()
+        counter = 0
         while(True):
-            if self.sc.getch() or counter == 3000/200:
+            key = self.sc.getch()
+            if key != curses.ERR or counter == 3000/200:
                 break
-            self.sc.timeout(200)
             counter += 1
         self.sc.clear()
 
